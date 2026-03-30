@@ -1,112 +1,108 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/services/supabase';
+import { useState, useEffect } from 'react';
+import { useCartStore } from '../store/useCartStore';
 
-export function useProducts() {
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+const products = [
+  {
+    id: '1',
+    name: 'Ethiopia Yirgacheffe',
+    category: 'coffee',
+    price: 18.50,
+    roast: 'Light',
+    grind: 'Whole Bean',
+    description: 'Floral notes with a citrus finish.',
+    image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=400',
+  },
+  {
+    id: '2',
+    name: 'V60 Coffee Dripper',
+    category: 'equipment',
+    price: 25.00,
+    description: 'Perfect for pour-over coffee.',
+    image: 'https://images.unsplash.com/photo-1544787210-22da78604374?auto=format&fit=crop&q=80&w=400',
+  },
+  {
+    id: '3',
+    name: 'Dark Chocolate Cookie',
+    category: 'sweets',
+    price: 3.50,
+    description: 'Rich dark chocolate with sea salt.',
+    image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&q=80&w=400',
+  },
+  {
+    id: '4',
+    name: 'Chemex 6-Cup',
+    category: 'equipment',
+    price: 45.00,
+    description: 'Iconic glass coffee maker.',
+    image: 'https://images.unsplash.com/photo-1517088455889-bfa75135412c?auto=format&fit=crop&q=80&w=400',
+  },
+  {
+    id: '5',
+    name: 'Brazil Santos',
+    category: 'coffee',
+    price: 15.00,
+    roast: 'Medium',
+    grind: 'Whole Bean',
+    description: 'Nutty and chocolatey flavors.',
+    image: 'https://images.unsplash.com/photo-1580915411954-282cb1b0d780?auto=format&fit=crop&q=80&w=400',
+  },
+  {
+    id: '6',
+    name: 'Cinnamon Roll',
+    category: 'sweets',
+    price: 4.25,
+    description: 'Freshly baked with cream cheese icing.',
+    image: 'https://images.unsplash.com/photo-1509365465985-25d11c17e812?auto=format&fit=crop&q=80&w=400',
+  }
+];
+
+export const useProducts = (category = 'all') => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const inventory = useCartStore(state => state.inventory);
 
   useEffect(() => {
-    let isMounted = true;
-    
-    async function fetchProducts() {
-      setIsLoading(true);
-      try {
-        supabase
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('name');
-
-        if (error) throw error;
-
-        if (isMounted) {
-          // Map image_url to image for UI compatibility
-          const mappedData = data.map(p => ({
-            ...p,
-            image: p.image_url
-          }));
-          setProducts(mappedData);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+    setLoading(true);
+    const timeoutId = setTimeout(() => {
+      let filtered = products.map(p => ({
+        ...p,
+        stock: inventory[p.id] || 0
+      }));
+      
+      if (category !== 'all') {
+        filtered = filtered.filter(p => p.category === category);
       }
-    }
+      
+      setData(filtered);
+      setLoading(false);
+    }, 500);
 
-    fetchProducts();
+    return () => clearTimeout(timeoutId);
+  }, [category, inventory]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  return { data, loading };
+};
 
-  return { products, isLoading, error };
-}
-
-export function useProduct(id) {
+export const useProduct = (id) => {
   const [product, setProduct] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const inventory = useCartStore(state => state.inventory);
 
   useEffect(() => {
-    if (!id) return;
-    
-    let isMounted = true;
-
-    async function fetchProduct() {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-
-        if (isMounted) {
-          setProduct({
-            ...data,
-            image: data.image_url
-          });
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+    setLoading(true);
+    const timeoutId = setTimeout(() => {
+      const p = products.find(item => item.id === id);
+      if (p) {
+        setProduct({
+          ...p,
+          stock: inventory[id] || 0
+        });
       }
-    }
+      setLoading(false);
+    }, 300);
 
-    fetchProduct();
+    return () => clearTimeout(timeoutId);
+  }, [id, inventory]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
-
-  return { product, isLoading, error };
-}
-
-export function useFilteredProducts(products, searchQuery, category) {
-  return useMemo(() => {
-    if (!products) return [];
-    return products.filter((product) => {
-      const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            product.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = category === 'all' || product.category === category;
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, searchQuery, category]);
-}
+  return { product, loading };
+};

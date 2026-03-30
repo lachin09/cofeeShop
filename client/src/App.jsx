@@ -1,42 +1,59 @@
-import { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { MainLayout } from '@/components/layouts/MainLayout';
-import { useAuthStore } from '@/store/useAuthStore';
+import React, { useState, useEffect } from 'react';
+import { MainLayout } from './components/layouts/MainLayout';
+import LandingPage from './pages/LandingPage';
+import CatalogPage from './pages/CatalogPage';
+import ProductPage from './pages/ProductPage';
+import CheckoutPage from './pages/CheckoutPage';
+import SuccessPage from './pages/SuccessPage';
 
-const Landing = lazy(() => import('@/pages/Landing').then(m => ({ default: m.Landing })));
-const Shop = lazy(() => import('@/pages/Shop').then(m => ({ default: m.Shop })));
-const Checkout = lazy(() => import('@/pages/Checkout').then(m => ({ default: m.Checkout })));
-const Success = lazy(() => import('@/pages/Success').then(m => ({ default: m.Success })));
-const About = lazy(() => import('@/pages/About').then(m => ({ default: m.About })));
-const Contact = lazy(() => import('@/pages/Contact').then(m => ({ default: m.Contact })));
-const ProductDetail = lazy(() => import('@/pages/ProductDetail').then(m => ({ default: m.ProductDetail })));
-const Orders = lazy(() => import('@/pages/Orders').then(m => ({ default: m.Orders })));
-
-export function App() {
-  const initializeAuth = useAuthStore((state) => state.initialize);
+function App() {
+  const [path, setPath] = useState(window.location.pathname);
 
   useEffect(() => {
-    initializeAuth();
-  }, [initializeAuth]);
+    const handleLocationChange = () => {
+      setPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    
+    // Intercept clicks on same-origin links to handle routing without page reload
+    const handleAnchorClick = (e) => {
+      const anchor = e.target.closest('a');
+      if (anchor && anchor.href.startsWith(window.location.origin)) {
+        e.preventDefault();
+        window.history.pushState({}, '', anchor.href);
+        handleLocationChange();
+      }
+    };
+
+    document.addEventListener('click', handleAnchorClick);
+
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      document.removeEventListener('click', handleAnchorClick);
+    };
+  }, []);
+
+  const renderPage = () => {
+    if (path === '/' || path === '/index.html') return <LandingPage />;
+    if (path === '/catalog') return <CatalogPage />;
+    if (path === '/checkout') return <CheckoutPage />;
+    if (path.startsWith('/product/')) {
+      const id = path.split('/').pop();
+      return <ProductPage id={id} />;
+    }
+    if (path.startsWith('/success/')) {
+      const orderId = path.split('/').pop();
+      return <SuccessPage orderId={orderId} />;
+    }
+    return <LandingPage />;
+  };
 
   return (
     <MainLayout>
-      <Suspense fallback={
-        <div className="flex h-[50vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-black dark:border-gray-800 dark:border-t-white" />
-        </div>
-      }>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/success" element={<Success />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/orders" element={<Orders />} />
-        </Routes>
-      </Suspense>
+      {renderPage()}
     </MainLayout>
   );
 }
+
+export default App;

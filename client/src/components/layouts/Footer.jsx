@@ -1,17 +1,42 @@
-import { Coffee } from 'lucide-react';
+import React from 'react';
 
-export function Footer() {
+export const Footer = () => {
   return (
-    <footer className="border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-black">
-      <div className="container mx-auto px-4 py-12 sm:px-6 lg:px-8 flex flex-col items-center">
-        <div className="flex items-center gap-2 text-gray-900 dark:text-white mb-6">
-          <Coffee className="h-5 w-5" />
-          <span className="text-lg font-medium tracking-tight">Onyx Coffee</span>
+    <footer className="bg-white dark:bg-black border-t border-zinc-100 dark:border-zinc-900 py-12">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div className="col-span-1 md:col-span-2">
+            <h3 className="text-xl font-semibold tracking-tight mb-6">COFFEE.</h3>
+            <p className="text-zinc-500 dark:text-zinc-400 max-w-sm leading-relaxed">
+              Experience the finest specialty coffee, sustainably sourced and roasted to perfection. 
+              Delivered fresh to your doorstep.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-medium mb-4">Shop</h4>
+            <ul className="space-y-2 text-sm text-zinc-500 dark:text-zinc-400">
+              <li><a href="/catalog" className="hover:text-black dark:hover:text-white transition-colors">Catalog</a></li>
+              <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Subscriptions</a></li>
+              <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Wholesale</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-medium mb-4">Support</h4>
+            <ul className="space-y-2 text-sm text-zinc-500 dark:text-zinc-400">
+              <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Shipping Info</a></li>
+              <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Returns</a></li>
+              <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Contact Us</a></li>
+            </ul>
+          </div>
         </div>
-        <div className="flex space-x-6 text-sm text-gray-500 dark:text-gray-400">
-          <p>&copy; {new Date().getFullYear()} Onyx Roasters. All rights reserved.</p>
+        <div className="mt-12 pt-12 border-t border-zinc-100 dark:border-zinc-900 flex flex-col md:flex-row justify-between items-center text-xs text-zinc-400 uppercase tracking-widest">
+          <p>© 2026 COFFEE CO. ALL RIGHTS RESERVED.</p>
+          <div className="flex space-x-6 mt-4 md:mt-0">
+            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Terms of Service</a>
+          </div>
         </div>
       </div>
     </footer>
   );
-}
+};
