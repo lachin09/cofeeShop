@@ -1,26 +1,19 @@
 import { create } from 'zustand';
+import { supabase } from '../services/supabase';
 
 export const useCartStore = create((set, get) => ({
   cartItems: [],
   isCartOpen: false,
-  inventory: {
-    '1': 10, // Ethiopia Yirgacheffe
-    '2': 5,  // V60 Dripper
-    '3': 20, // Chocolate Cookie
-    '4': 8,  // Chemex
-    '5': 15, // Brazil Santos
-    '6': 12, // Cinnamon Roll
-  },
+  inventory: {}, // Will be populated from DB or handled by DB triggers
 
   setCartOpen: (isOpen) => set({ isCartOpen: isOpen }),
 
   addItem: (product, quantity = 1) => {
-    const { cartItems, inventory } = get();
-    const currentStock = inventory[product.id] || 0;
+    const { cartItems } = get();
     const existingItem = cartItems.find(item => item.id === product.id);
     const totalQuantity = (existingItem?.quantity || 0) + quantity;
 
-    if (totalQuantity > currentStock) {
+    if (totalQuantity > product.stock) {
       alert('Not enough stock available');
       return;
     }
@@ -42,9 +35,8 @@ export const useCartStore = create((set, get) => ({
     }));
   },
 
-  updateQuantity: (productId, quantity) => {
-    const { inventory } = get();
-    if (quantity > inventory[productId]) return;
+  updateQuantity: (productId, quantity, stock) => {
+    if (quantity > stock) return;
     if (quantity < 1) return;
 
     set(state => ({
@@ -61,28 +53,53 @@ export const useCartStore = create((set, get) => ({
   },
 
   getLoyaltyPoints: () => {
-    // 1 point for every 10 currency units spent on coffee products
     const coffeeTotal = get().cartItems
       .filter(item => item.category === 'coffee')
       .reduce((total, item) => total + item.price * item.quantity, 0);
     return Math.floor(coffeeTotal / 10);
   },
 
-  checkout: async () => {
-    const { cartItems, inventory } = get();
+  checkout: async (customerData) => {
+    const { cartItems, getTotalPrice, clearCart } = get();
     
-    // Simulate stock deduction
-    const newInventory = { ...inventory };
-    cartItems.forEach(item => {
-      newInventory[item.id] -= item.quantity;
-    });
+    try {
+      // 1. Create the order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_name: customerData.name,
+          customer_email: customerData.email,
+          customer_phone: customerData.phone,
+          shipping_address: customerData.address,
+          total_amount: getTotalPrice(),
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        set({ inventory: newInventory, cartItems: [] });
-        resolve({ success: true, orderId: Math.floor(Math.random() * 1000000) });
-      }, 1000);
-    });
+      if (orderError) throw orderError;
+
+      // 2. Create order items
+      const orderItems = cartItems.map(item => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.quantity,
+        unit_price: item.price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Stock deduction is handled by the DB trigger 'on_order_item_created'
+
+      clearCart();
+      return { success: true, orderId: order.id };
+    } catch (error) {
+      console.error('Checkout error:', error);
+      return { success: false, error: error.message };
+    }
   }
 }));

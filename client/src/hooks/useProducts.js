@@ -1,108 +1,109 @@
 import { useState, useEffect } from 'react';
 import { useCartStore } from '../store/useCartStore';
+import { supabase } from '../services/supabase';
 
-const products = [
-  {
-    id: '1',
-    name: 'Ethiopia Yirgacheffe',
-    category: 'coffee',
-    price: 18.50,
-    roast: 'Light',
-    grind: 'Whole Bean',
-    description: 'Floral notes with a citrus finish.',
-    image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=400',
-  },
-  {
-    id: '2',
-    name: 'V60 Coffee Dripper',
-    category: 'equipment',
-    price: 25.00,
-    description: 'Perfect for pour-over coffee.',
-    image: 'https://images.unsplash.com/photo-1544787210-22da78604374?auto=format&fit=crop&q=80&w=400',
-  },
-  {
-    id: '3',
-    name: 'Dark Chocolate Cookie',
-    category: 'sweets',
-    price: 3.50,
-    description: 'Rich dark chocolate with sea salt.',
-    image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&q=80&w=400',
-  },
-  {
-    id: '4',
-    name: 'Chemex 6-Cup',
-    category: 'equipment',
-    price: 45.00,
-    description: 'Iconic glass coffee maker.',
-    image: 'https://images.unsplash.com/photo-1517088455889-bfa75135412c?auto=format&fit=crop&q=80&w=400',
-  },
-  {
-    id: '5',
-    name: 'Brazil Santos',
-    category: 'coffee',
-    price: 15.00,
-    roast: 'Medium',
-    grind: 'Whole Bean',
-    description: 'Nutty and chocolatey flavors.',
-    image: 'https://images.unsplash.com/photo-1580915411954-282cb1b0d780?auto=format&fit=crop&q=80&w=400',
-  },
-  {
-    id: '6',
-    name: 'Cinnamon Roll',
-    category: 'sweets',
-    price: 4.25,
-    description: 'Freshly baked with cream cheese icing.',
-    image: 'https://images.unsplash.com/photo-1509365465985-25d11c17e812?auto=format&fit=crop&q=80&w=400',
-  }
-];
-
-export const useProducts = (category = 'all') => {
+export const useProducts = (categorySlug = 'all') => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const inventory = useCartStore(state => state.inventory);
 
   useEffect(() => {
-    setLoading(true);
-    const timeoutId = setTimeout(() => {
-      let filtered = products.map(p => ({
-        ...p,
-        stock: inventory[p.id] || 0
-      }));
-      
-      if (category !== 'all') {
-        filtered = filtered.filter(p => p.category === category);
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        let query = supabase
+          .from('products')
+          .select(`
+            *,
+            categories (
+              slug
+            )
+          `);
+
+        if (categorySlug !== 'all') {
+          query = query.eq('categories.slug', categorySlug);
+        }
+
+        const { data: products, error } = await query;
+
+        if (error) throw error;
+
+        const transformedProducts = products
+          .filter(p => categorySlug === 'all' || p.categories?.slug === categorySlug)
+          .map(p => ({
+            id: p.id,
+            name: p.name,
+            category: p.categories?.slug || 'other',
+            price: parseFloat(p.price),
+            roast: p.roast_level,
+            grind: p.grind_type,
+            description: p.description,
+            image: p.image_url,
+            stock: p.stock_quantity
+          }));
+
+        setData(transformedProducts);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-      
-      setData(filtered);
-      setLoading(false);
-    }, 500);
+    };
 
-    return () => clearTimeout(timeoutId);
-  }, [category, inventory]);
+    fetchProducts();
+  }, [categorySlug, inventory]);
 
-  return { data, loading };
+  return { data, loading, error };
 };
 
 export const useProduct = (id) => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const inventory = useCartStore(state => state.inventory);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
-    const timeoutId = setTimeout(() => {
-      const p = products.find(item => item.id === id);
-      if (p) {
-        setProduct({
-          ...p,
-          stock: inventory[id] || 0
-        });
+    const fetchProduct = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const { data: p, error } = await supabase
+          .from('products')
+          .select(`
+            *,
+            categories (
+              slug
+            )
+          `)
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+
+        if (p) {
+          setProduct({
+            id: p.id,
+            name: p.name,
+            category: p.categories?.slug || 'other',
+            price: parseFloat(p.price),
+            roast: p.roast_level,
+            grind: p.grind_type,
+            description: p.description,
+            image: p.image_url,
+            stock: p.stock_quantity
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 300);
+    };
 
-    return () => clearTimeout(timeoutId);
-  }, [id, inventory]);
+    fetchProduct();
+  }, [id]);
 
-  return { product, loading };
+  return { product, loading, error };
 };

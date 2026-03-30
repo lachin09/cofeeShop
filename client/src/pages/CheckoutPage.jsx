@@ -21,9 +21,11 @@ const CheckoutPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const result = await checkout();
+    const result = await checkout(formData);
     if (result.success) {
       window.location.href = `/success/${result.orderId}`;
+    } else {
+      alert(`Checkout failed: ${result.error}`);
     }
     setLoading(false);
   };
